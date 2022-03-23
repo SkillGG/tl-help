@@ -1,0 +1,100 @@
+// colors: https://coolors.co/595959-bbbdf6-a2c5ac-04052e
+
+:root {
+    --footer: #595959;
+    --select: #a2c5ac;
+    --bg: #bbbdf6;
+    --titles: #04052e;
+    --btn1: #d16666;
+    --btn2: #9c95dc;
+    --btn3: #228cdb;
+    --btn4: #636363;
+}
+
+body {
+    padding: 0;
+    margin: 0;
+    background-color: var(--bg);
+}
+
+nav {
+    z-index: 99;
+    position: relative;
+    > ul {
+        list-style: none;
+        > li {
+            cursor: pointer;
+            user-select: none;
+            background-color: var(--btn3);
+            &:hover {
+                background-color: var(--btn1);
+                color: white;
+            }
+            display: inline-block;
+            padding: 5px;
+            height: 25px;
+            margin: 0 10px;
+            position: relative;
+            padding: 10px;
+            &:hover {
+                & > ul {
+                    list-style: none;
+                    display: block;
+                    padding: 0;
+                    position: absolute;
+                    width: max-content;
+                    translate: 0 14px;
+                    left: 0;
+                    margin: 0;
+                }
+            }
+            & > ul {
+                display: none;
+                & > li {
+                    padding: 10px;
+                    background-color: var(--btn2);
+                    &:hover {
+                        background-color: var(--btn4);
+                    }
+                }
+            }
+        }
+    }
+}
+main {
+    .draw {
+        margin: 0 auto;
+    }
+    position: relative;
+    display: grid;
+    grid-auto-flow: column;
+    grid-template-columns: 1fr 1fr;
+    canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    div#text {
+        border: none;
+        margin: 0 auto;
+        width: 50%;
+        overflow-y: hidden;
+        border: 1px solid black;
+        padding: 10px;
+        span {
+            width: 100%;
+            display: inline-block;
+            text-align: center;
+        }
+        textarea {
+            width: 100%;
+            height: 100%;
+            padding: 5px 0 0 0;
+            margin: 0px;
+            border: none;
+            border-top: 1px solid black;
+            resize: none;
+            outline: none;
+        }
+    }
+}
