@@ -17,6 +17,17 @@ nav {
   z-index: 99;
   position: relative;
 }
+nav .no-back {
+  background-color: transparent;
+}
+nav .no-hover:hover {
+  background-color: transparent;
+  color: initial;
+  cursor: initial;
+}
+nav .allow-copy {
+  user-select: auto;
+}
 nav > ul {
   list-style: none;
 }

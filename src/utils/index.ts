@@ -109,7 +109,8 @@ export class ClickableRect extends Rect {
         ctx: CanvasRenderingContext2D,
         rect?: boolean,
         c_unselected?: [Color, Color],
-        c_selected?: [Color, Color]
+        c_selected?: [Color, Color],
+        data?: string
     ): void {
         let green, border_green;
         let black, border_black;
@@ -129,8 +130,9 @@ export class ClickableRect extends Rect {
             border_black = black;
         }
         ctx.beginPath();
-        if (iE) ctx.rect(this.p[0], this.p[1], this.s[0], this.s[1]);
-        else
+        if (iE) {
+            ctx.rect(this.p[0], this.p[1], this.s[0], this.s[1]);
+        } else
             ctx.ellipse(
                 this.p[0] + this.s[0] / 2,
                 this.p[1] + this.s[1] / 2,
@@ -166,6 +168,28 @@ export class ClickableRect extends Rect {
             );
             ctx.fillStyle = "red";
             ctx.fillText(`Text${this.getID()}`, this.p[0] + 5, this.p[1] - 5);
+        }
+        if (data && iE) {
+            let measures: TextMetrics[] = [];
+            const getHeight = () =>
+                measures.reduce<number>(
+                    (p, n, i) =>
+                        p + n.actualBoundingBoxAscent * 1.2 * (i ? 1 : 0) + 5,
+                    0
+                );
+            const pf = ctx.font;
+            data.split("\n").forEach((e, i) => {
+                measures.push(ctx.measureText(e));
+                ctx.font = "14px Arial";
+                const p1 = this.p[0] + 5,
+                    p2 = this.p[1] + getHeight() + 10,
+                    w = this.s[0] - 10;
+                ctx.strokeStyle = "white";
+                ctx.strokeText(e, p1, p2, w);
+                ctx.fillStyle = "black";
+                ctx.fillText(e, p1, p2, w);
+            });
+            ctx.font = pf;
         }
         ctx.closePath();
     }

@@ -21,9 +21,17 @@ function App() {
     const [loadedMIME, setLoadedMIME] = useState<string>("");
 
     /**
+     * Delete interval
+     */
+    const [delInt, setDelInt] = useState<number>();
+    const [delCount, setDelCount] = useState<number>(0);
+
+    /**
      * Canvas's ref
      */
     const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    const [info, setInfo] = useState<string>("");
 
     /**
      * Canvas size and placement
@@ -54,6 +62,7 @@ function App() {
     type NavOpt = {
         text: string;
         onclick: React.MouseEventHandler<HTMLLIElement>;
+        customCSS?: [string?, string?, string?];
         sub?: NavOpt[];
     };
 
@@ -73,6 +82,17 @@ function App() {
         i.click();
     };
 
+    const removeDataFor = (n: number) => {
+        setDataValues((p) => {
+            const u = [...p];
+            u.splice(
+                u.findIndex((r) => r[0] === n),
+                1
+            );
+            return new Map(u);
+        });
+    };
+
     const options: NavOpt[] = [
         {
             text: "File",
@@ -82,34 +102,31 @@ function App() {
                     text: "Load IMG(s)",
                     onclick: (e) => {
                         // create file input dialog
-                        openFileDialog(
-                            ".jpg,.png,.bmp",
-                            false,
-                            (files) => {
-                                if (files) {
-                                    [...files].forEach(async (r) => {
-                                        // get every file's blob
-                                        const blob = r.slice();
-                                        // change blob to an array of bytes
-                                        const bytes = await blob.arrayBuffer();
-                                        // array of bytes to base64 conversion
-                                        const base64 = btoa(
-                                            new Uint8Array(bytes).reduce(
-                                                (data, byte) =>
-                                                    data +
-                                                    String.fromCharCode(byte),
-                                                ""
-                                            )
-                                        );
-                                        // set loaded image's data
-                                        // TODO: Handle multi-file
-                                        setLoadedMIME(r.type);
-                                        setLoadedImage(base64);
-                                        setLoaded(true);
-                                    });
-                                }
+                        openFileDialog(".jpg,.png,.bmp", false, (files) => {
+                            if (files) {
+                                [...files].forEach(async (r) => {
+                                    // get every file's blob
+                                    const blob = r.slice();
+                                    // change blob to an array of bytes
+                                    const bytes = await blob.arrayBuffer();
+                                    // array of bytes to base64 conversion
+                                    const base64 = btoa(
+                                        new Uint8Array(bytes).reduce(
+                                            (data, byte) =>
+                                                data +
+                                                String.fromCharCode(byte),
+                                            ""
+                                        )
+                                    );
+                                    // set loaded image's data
+                                    // TODO: Handle multi-file
+                                    setLoadedMIME(r.type);
+                                    setLoadedImage(base64);
+                                    setLoaded(true);
+                                    setInfo(`Loaded file: ${r.name}`);
+                                });
                             }
-                        );
+                        });
                     },
                 },
                 {
@@ -182,22 +199,29 @@ function App() {
                         setFillFlag(!fillFlag);
                     },
                 },
+                {
+                    text: "Delete (Alt + Delete)",
+                    onclick: (e) => {
+                        document.querySelector("canvas")?.dispatchEvent(
+                            new KeyboardEvent("keydown", {
+                                key: "Delete",
+                                altKey: true,
+                            })
+                        );
+                    },
+                },
             ],
         },
         {
             text: "Instructions",
             onclick: (e) => {},
         },
+        {
+            text: `${info}`,
+            onclick: (e) => {},
+            customCSS: ["no-back no-hover allow-copy"],
+        },
     ];
-
-    /**
-     *
-     * @param n A tuple with RectID, Rectangle placement and text
-     * @returns A string representation of a single DataValue
-     */
-    const dvToStr = (n: [number, Data]): string =>
-        `${n[0]}:${n[1][1][1].join("x")}@${n[1][1][0].join(",")}=${n[1][0]}`;
-
     /**
      *
      * @param o NavOpt to convert
@@ -205,15 +229,27 @@ function App() {
      * @returns JSX that NavOpt was converted to
      */
     const noToJSX = (o: NavOpt, cn: string) => {
-        return (
-            <li key={`${cn}${o.text}`} onClick={o.onclick}>
-                <span>{o.text}</span>
+        const key = `${cn}_${o.text}`;
+        return o.text ? (
+            <li
+                key={key}
+                className={o.customCSS?.[0] || ""}
+                onClick={o.onclick}
+            >
+                <span key={`s${key}`} className={o.customCSS?.[1] || ""}>
+                    {o.text}
+                </span>
                 {o.sub && (
-                    <ul className={cn}>
+                    <ul
+                        key={`sub_${key}`}
+                        className={`${cn} ${o.customCSS?.[2] || ""}`}
+                    >
                         {o.sub.map((r) => noToJSX(r, "micro"))}
                     </ul>
                 )}
             </li>
+        ) : (
+            <></>
         );
     };
 
@@ -223,18 +259,25 @@ function App() {
      * @param rect rectangle position and size (if new rectangle)
      */
     const setDV = (str: string, rect?: [Point, Size]): void => {
-        if (dataID)
+        if (dataID) {
             setDataValues((p) => {
                 const ndv = [...p];
                 const last = ndv[ndv.length - 1];
                 const r = rect || last[1][1];
                 return new Map([...p, [dataID, [str, r]]]);
             });
+            if (textRef.current) {
+                textRef.current.style.height = "auto";
+                textRef.current.style.height = `${textRef.current.scrollHeight}px`;
+            }
+        }
     };
+
+    // TODO: Canvas-Line-Break https://stackoverflow.com/questions/5026961/html5-canvas-ctx-filltext-wont-do-line-breaks
 
     /** Disable Tab changing places */
     document.onkeydown = (e) => {
-        if (e.key === "Tab") {
+        if (e.key === "Tab" || e.key === " ") {
             e.preventDefault();
         }
     };
@@ -242,7 +285,9 @@ function App() {
     return (
         <div>
             <nav className="menu">
-                <ul>{options.map((o) => noToJSX(o, "sub-menu"))}</ul>
+                <ul key={"main"}>
+                    {options.map((o) => noToJSX(o, "sub-menu"))}
+                </ul>
             </nav>
             {loaded && (
                 <>
@@ -266,9 +311,52 @@ function App() {
 
                             <DrawCanvas
                                 fillFlag={fillFlag}
+                                getData={(id) =>
+                                    [...dataValues].find(
+                                        (v) => v[0] === id
+                                    )?.[1][0] || ""
+                                }
+                                onkeydown={(e, canv) => {
+                                    const rem = () => {
+                                        setDelCount(delCount + 1);
+                                        const val = textRef.current?.value;
+                                        if (val) {
+                                            setDV(
+                                                !e.shiftKey
+                                                    ? val.substring(
+                                                          0,
+                                                          val.length -
+                                                              (delCount + 1)
+                                                      )
+                                                    : val.substring(
+                                                          0,
+                                                          val.lastIndexOf(" ")
+                                                      )
+                                            );
+                                        }
+                                    };
+                                    if (e.key === "Delete" && e.altKey) {
+                                        const rmv = canv.removeRect();
+                                        if (rmv) removeDataFor(rmv);
+                                    } else if (
+                                        e.key === "Backspace" ||
+                                        e.key === "Delete"
+                                    ) {
+                                        rem();
+                                        if (!delInt)
+                                            setDelInt(setInterval(rem, 100));
+                                    }
+                                }}
                                 onkeyup={(e, canv) => {
                                     if (e.key === "Tab") canv.nextRect();
-                                    else if (e.key.length === 1 && !e.altKey) {
+                                    else if (e.key === "c" && e.ctrlKey) {
+                                        const d = dataValues.get(dataID)?.[0];
+                                        if (d) navigator.clipboard.writeText(d);
+                                        setInfo("Copied to clipboard!");
+                                    } else if (
+                                        e.key.length === 1 &&
+                                        !e.altKey
+                                    ) {
                                         if (
                                             textRef.current &&
                                             !textRef.current.disabled
@@ -279,6 +367,19 @@ function App() {
                                     } else if (e.key === "f" && e.altKey) {
                                         setFillFlag(!fillFlag);
                                         console.log("alt + f");
+                                    } else if (
+                                        e.key === "Backspace" ||
+                                        e.key === "Delete"
+                                    ) {
+                                        if (delInt) {
+                                            clearInterval(delInt);
+                                            setDelInt(0);
+                                            setDelCount(0);
+                                        }
+                                    }
+                                    if (e.key === "Enter") {
+                                        if (textRef.current)
+                                            setDV(textRef.current.value + "\n");
                                     }
                                 }}
                                 setDataID={(x, rect) => {

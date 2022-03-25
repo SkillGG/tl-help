@@ -20,6 +20,17 @@ body {
 nav {
     z-index: 99;
     position: relative;
+    .no-back {
+        background-color: transparent;
+    }
+    .no-hover:hover {
+        background-color: transparent;
+        color: initial;
+        cursor: initial;
+    }
+    .allow-copy {
+        user-select: auto;
+    }
     > ul {
         list-style: none;
         > li {
