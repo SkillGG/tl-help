@@ -31,6 +31,8 @@ function App() {
      */
     const canvasRef = useRef<HTMLCanvasElement>(null);
 
+    const [deleteFlag, setDeleteFlag] = useState(false);
+
     const [info, setInfo] = useState<string>("");
 
     /**
@@ -202,12 +204,7 @@ function App() {
                 {
                     text: "Delete (Alt + Delete)",
                     onclick: (e) => {
-                        document.querySelector("canvas")?.dispatchEvent(
-                            new KeyboardEvent("keydown", {
-                                key: "Delete",
-                                altKey: true,
-                            })
-                        );
+                        setDeleteFlag(true);
                     },
                 },
             ],
@@ -310,6 +307,10 @@ function App() {
                             </div>
 
                             <DrawCanvas
+                                triggerDelete={[
+                                    deleteFlag,
+                                    () => setDeleteFlag(false),
+                                ]}
                                 fillFlag={fillFlag}
                                 getData={(id) =>
                                     [...dataValues].find(
@@ -335,6 +336,7 @@ function App() {
                                             );
                                         }
                                     };
+                                    console.log("okd", e.key, e.altKey);
                                     if (e.key === "Delete" && e.altKey) {
                                         const rmv = canv.removeRect();
                                         if (rmv) removeDataFor(rmv);

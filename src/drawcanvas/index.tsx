@@ -30,6 +30,7 @@ interface DrawCanvasProps {
     style?: React.CSSProperties;
     colors?: [number, number, number][];
     fillFlag: boolean;
+    triggerDelete: [boolean, () => void];
 }
 
 const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
@@ -40,6 +41,7 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
     onkeydown,
     onkeyup,
     fillFlag,
+    triggerDelete,
     getData,
     colors,
 }) => {
@@ -101,6 +103,11 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
         }
         ctx?.restore();
     };
+
+    useEffect(() => {
+        if (triggerDelete[0]) removeRect();
+        triggerDelete[1]();
+    }, [triggerDelete[0]]);
 
     useEffect(() => {
         draw();
@@ -169,8 +176,6 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
             }
         }
     };
-
-    console.log(rects.map((r) => r.getID()));
 
     const removeRect = () => {
         if (rects.length <= 0) return;
@@ -330,7 +335,10 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
             {
                 <canvas
                     onKeyUp={(e) => onkeyup(e, { nextRect, removeRect })}
-                    onKeyDown={(e) => onkeydown(e, { nextRect, removeRect })}
+                    onKeyDown={(e) => {
+                        console.log(e.key);
+                        onkeydown(e, { nextRect, removeRect });
+                    }}
                     tabIndex={0}
                     style={{ ...style, left: `${offsetLeft}px` }}
                     ref={canvasRef}
