@@ -9,13 +9,21 @@ import {
 
 const def_green: [number, number, number] = [0, 255, 0];
 
+type CanvasFunctions = {
+    nextRect(): void;
+};
+
 interface DrawCanvasProps {
     size: Size;
     setDataID(n: number, r: RectData): void;
     offsetLeft: number;
-    onkeyup: React.KeyboardEventHandler<HTMLCanvasElement>;
+    onkeyup(
+        e: React.KeyboardEvent<HTMLCanvasElement>,
+        c: CanvasFunctions
+    ): void;
     style?: React.CSSProperties;
     colors?: [number, number, number][];
+    fillFlag: boolean;
 }
 
 const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
@@ -24,6 +32,7 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
     setDataID,
     offsetLeft,
     onkeyup,
+    fillFlag,
     colors,
 }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -38,7 +47,8 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
                 [0, 0],
             ],
             false,
-            false
+            false,
+            fillFlag
         )
     );
 
@@ -65,7 +75,7 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
             ctx.beginPath();
             ctx.clearRect(0, 0, size[0], size[1]);
             rects.forEach((r) =>
-                r.draw(ctx, undefined, [
+                r.draw(ctx, undefined, undefined, [
                     hexToColor("a2c5ac") || def_green,
                     hexToColor("92b59c") || def_green,
                 ])
@@ -104,7 +114,9 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
                         [0, 0],
                     ],
                     false,
-                    false
+                    false,
+                    e.altKey ? false : true,
+                    fillFlag
                 );
                 setCurrentDrag((p) => rect);
             } else if (e.button === 2) {
@@ -131,34 +143,63 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
                         //     newSize[0],
                         //     newSize[1]
                         // );
-                        return new ClickableRect([p.p, newSize], false, false);
+                        return new ClickableRect(
+                            [p.p, newSize],
+                            false,
+                            false,
+                            p.isEllipse,
+                            p.fillFlag
+                        );
                     });
                 }
             }
         }
     };
 
+    const nextRect = () => {
+        if (rects.length <= 0) return;
+        const cur = clickedList[clickedList.length - 1];
+        const next = rects.find((r) => r.getID() === 1 + cur);
+        console.log(cur, next?.getID());
+        let nextID = 1;
+        if (next) nextID = next.getID();
+        moveIDToBottomOfClickedList(nextID);
+        unclickEverythingExcept(nextID);
+        setDataID(nextID, (next || rects[0]).getRectData());
+    };
+
+    const moveIDToBottomOfClickedList = (id: number) => {
+        setClickedList((p) => {
+            const unique = [...p, id];
+            unique.forEach((c) => {
+                let z: number[];
+                while ((z = unique.filter((n) => n === c)).length > 1)
+                    unique.splice(unique.indexOf(z[0]), 1);
+            });
+            return unique;
+        });
+    };
+
+    const unclickEverythingExcept = (id: number) => {
+        setRects((p) =>
+            p.slice().map((x) => {
+                return new ClickableRect(
+                    [x.p, x.s],
+                    x.id,
+                    x.getID() === id,
+                    x.isEllipse,
+                    x.fillFlag
+                );
+            })
+        );
+    };
+
     const canvasClick = (e: CanvasMouseEvent) => {
         const setClicked = (clicked: ClickableRect) => {
-            setClickedList((p) => {
-                const unique = [...p, clicked.getID()];
-                unique.forEach((c) => {
-                    let z: number[];
-                    while ((z = unique.filter((n) => n === c)).length > 1)
-                        unique.splice(unique.indexOf(z[0]), 1);
-                });
-                return unique;
-            });
-            setRects((p) =>
-                p.slice().map((x) => {
-                    return new ClickableRect(
-                        [x.p, x.s],
-                        x.id,
-                        x.id === clicked.id
-                    );
-                })
-            );
-            setDataID(clicked.getID(), clicked.getRectData());
+            const [data, id] = [clicked.getRectData(), clicked.getID()];
+            moveIDToBottomOfClickedList(id);
+            unclickEverythingExcept(id);
+            setDataID(id, data);
         };
 
         const unsetClicked = () => {
@@ -169,7 +210,13 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
             });
             setRects((p) =>
                 p.slice().map((x) => {
-                    return new ClickableRect([x.p, x.s], x.id, false);
+                    return new ClickableRect(
+                        [x.p, x.s],
+                        x.id,
+                        false,
+                        x.isEllipse,
+                        x.fillFlag
+                    );
                 })
             );
             setDataID(0, [
@@ -216,7 +263,9 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
                     new ClickableRect(
                         [currentDrag.p, currentDrag.s],
                         true,
-                        false
+                        false,
+                        currentDrag.isEllipse,
+                        currentDrag.fillFlag
                     ),
                 ]);
                 console.log("End Drag", currentDrag.toString());
@@ -230,7 +279,7 @@ const DrawCanvas: FunctionComponent<DrawCanvasProps> = ({
         <>
             {
                 <canvas
-                    onKeyUp={onkeyup}
+                    onKeyUp={(e) => onkeyup(e, { nextRect: nextRect })}
                     tabIndex={0}
                     style={{ ...style, left: `${offsetLeft}px` }}
                     ref={canvasRef}

@@ -21,6 +21,11 @@ function App() {
     const [loadedMIME, setLoadedMIME] = useState<string>("");
 
     /**
+     * Canvas's ref
+     */
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    /**
      * Canvas size and placement
      */
     const [canvasSize, setCanvasSize] = useState<Size>([0, 0]);
@@ -36,6 +41,8 @@ function App() {
      */
     const [dataValues, setDataValues] = useState<DataMap>(new Map());
 
+    const [fillFlag, setFillFlag] = useState<boolean>(false);
+
     /**
      * TextArea Ref
      */
@@ -50,6 +57,22 @@ function App() {
         sub?: NavOpt[];
     };
 
+    const openFileDialog = (
+        a: string,
+        m: boolean,
+        getData: (files: FileList | null) => void
+    ) => {
+        const i = document.createElement("input");
+        i.type = "file";
+        i.style.display = "none";
+        i.accept = a;
+        i.multiple = m;
+        i.onchange = () => {
+            getData(i.files);
+        };
+        i.click();
+    };
+
     const options: NavOpt[] = [
         {
             text: "File",
@@ -59,45 +82,42 @@ function App() {
                     text: "Load IMG(s)",
                     onclick: (e) => {
                         // create file input dialog
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.style.display = "none";
-                        input.accept = ".jpg,.png,.bmp,.xtlf";
-                        input.multiple = false;
-                        input.onchange = () => {
-                            const files = input.files;
-                            if (files) {
-                                // if user chose something
-                                [...files].forEach(async (r) => {
-                                    // get every file's blob
-                                    const blob = r.slice();
-                                    // change blob to an array of bytes
-                                    const bytes = await blob.arrayBuffer();
-                                    // array of bytes to base64 conversion
-                                    const base64 = btoa(
-                                        new Uint8Array(bytes).reduce(
-                                            (data, byte) =>
-                                                data +
-                                                String.fromCharCode(byte),
-                                            ""
-                                        )
-                                    );
-                                    // set loaded image's data
-                                    // TODO: Handle multi-file
-                                    setLoadedMIME(r.type);
-                                    setLoadedImage(base64);
-                                    setLoaded(true);
-                                });
+                        openFileDialog(
+                            ".jpg,.png,.bmp",
+                            false,
+                            (files) => {
+                                if (files) {
+                                    [...files].forEach(async (r) => {
+                                        // get every file's blob
+                                        const blob = r.slice();
+                                        // change blob to an array of bytes
+                                        const bytes = await blob.arrayBuffer();
+                                        // array of bytes to base64 conversion
+                                        const base64 = btoa(
+                                            new Uint8Array(bytes).reduce(
+                                                (data, byte) =>
+                                                    data +
+                                                    String.fromCharCode(byte),
+                                                ""
+                                            )
+                                        );
+                                        // set loaded image's data
+                                        // TODO: Handle multi-file
+                                        setLoadedMIME(r.type);
+                                        setLoadedImage(base64);
+                                        setLoaded(true);
+                                    });
+                                }
                             }
-                        };
-                        // show fileopendialog
-                        input.click();
+                        );
                     },
                 },
                 {
                     text: "Load .TLF",
                     onclick: () => {
                         // TODO: Load from .TLF File
+                        const input = document.createElement("input");
+                        input.type = "file";
                     },
                 },
                 {
@@ -116,11 +136,23 @@ function App() {
                     text: "As .TLF",
                     onclick: () => {
                         // change data to TLF file format string
-                        const data = [...dataValues].reduce((p, n) => {
-                            return p + n[0] ? `${dvToStr(n)}\n` : "";
-                        }, "");
+                        const data = [...dataValues];
+                        let preFile = "";
+                        let postFile = "";
+                        data.forEach((r) => {
+                            const str = r[1][0];
+                            const id = r[0];
+                            const rect = r[1][1];
+                            if (id) {
+                                preFile += `${id}:${str}\n`;
+                                postFile += `${id}{${rect[0]}/${rect[1]}};`;
+                            }
+                        });
+                        const fileData = `${preFile}\n\n${postFile}`;
                         // change string to blob
-                        const blob = new Blob([data], { type: "text/plain" });
+                        const blob = new Blob([fileData], {
+                            type: "text/plain",
+                        });
                         // create a link to a blob
                         const a = document.createElement("a");
                         a.href = URL.createObjectURL(blob);
@@ -136,6 +168,18 @@ function App() {
                     text: "As .xTLF",
                     onclick: (e) => {
                         // TODO: Add xTLF
+                    },
+                },
+            ],
+        },
+        {
+            text: "Options",
+            onclick: (e) => {},
+            sub: [
+                {
+                    text: `${fillFlag ? "[V]" : ""} Fill (Alt+F)`,
+                    onclick: (e) => {
+                        setFillFlag(!fillFlag);
                     },
                 },
             ],
@@ -221,8 +265,21 @@ function App() {
                             </div>
 
                             <DrawCanvas
-                                onkeyup={(e) => {
-                                    console.log(e.key);
+                                fillFlag={fillFlag}
+                                onkeyup={(e, canv) => {
+                                    if (e.key === "Tab") canv.nextRect();
+                                    else if (e.key.length === 1 && !e.altKey) {
+                                        if (
+                                            textRef.current &&
+                                            !textRef.current.disabled
+                                        ) {
+                                            textRef.current.value += e.key;
+                                            setDV(textRef.current.value);
+                                        }
+                                    } else if (e.key === "f" && e.altKey) {
+                                        setFillFlag(!fillFlag);
+                                        console.log("alt + f");
+                                    }
                                 }}
                                 setDataID={(x, rect) => {
                                     setDataID(x);
@@ -266,6 +323,11 @@ function App() {
                                     onChange={(e) => {
                                         setDV(e.currentTarget.value || "");
                                     }}
+                                    onFocus={() =>
+                                        document
+                                            .querySelector("canvas")
+                                            ?.focus()
+                                    }
                                     disabled={dataID ? false : true}
                                     value={dataValues.get(dataID)?.[0] || ""}
                                 ></textarea>

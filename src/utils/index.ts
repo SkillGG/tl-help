@@ -10,14 +10,23 @@ export class Rect {
     s: Size;
     p: Point;
     id: number;
+    isEllipse: boolean;
+    fillFlag: boolean;
     static n: number = 0;
-    constructor(sp: RectData, i: boolean | number) {
+    constructor(
+        sp: RectData,
+        i: boolean | number,
+        e: boolean = false,
+        fill: boolean = false
+    ) {
         this.p = sp[0];
         this.s = sp[1];
         if (i) {
             this.orient();
         }
         this.id = i === true ? Rect.n++ : typeof i === "number" ? i : -1;
+        this.isEllipse = e;
+        this.fillFlag = fill;
     }
     orient() {
         if (this.s[0] < 0) {
@@ -32,6 +41,7 @@ export class Rect {
     draw(ctx: CanvasRenderingContext2D) {
         ctx.beginPath();
         ctx.rect(this.p[0], this.p[1], this.s[0], this.s[1]);
+        if (this.fillFlag) ctx.fill();
         ctx.stroke();
         ctx.closePath();
     }
@@ -72,7 +82,7 @@ export class Rect {
             p[1] > this.p[1] &&
             p[1] < this.p[1] + this.s[1]
         );
-    }   
+    }
     getID() {
         return (this.id - 1) / 2 + 1;
     }
@@ -85,19 +95,27 @@ export type Color = [number, number, number];
 
 export class ClickableRect extends Rect {
     clicked: boolean;
-    constructor(sp: RectData, i: boolean | number, clicked: boolean) {
-        super(sp, i);
+    constructor(
+        sp: RectData,
+        i: boolean | number,
+        clicked: boolean,
+        e: boolean = false,
+        fill: boolean = false
+    ) {
+        super(sp, i, e, fill);
         this.clicked = clicked;
     }
     draw(
         ctx: CanvasRenderingContext2D,
+        rect?: boolean,
         c_unselected?: [Color, Color],
         c_selected?: [Color, Color]
     ): void {
         let green, border_green;
         let black, border_black;
+        const iE = rect === undefined ? this.isEllipse : rect;
         if (c_selected) {
-            green = `rgb(${c_selected[0][0]},${c_selected[0][1]},${c_selected[0][2]})`; 
+            green = `rgb(${c_selected[0][0]},${c_selected[0][1]},${c_selected[0][2]})`;
             border_green = `rgb(${c_selected[1][0]},${c_selected[1][1]},${c_selected[1][2]})`;
         } else {
             green = "green";
@@ -111,8 +129,22 @@ export class ClickableRect extends Rect {
             border_black = black;
         }
         ctx.beginPath();
-        ctx.rect(this.p[0], this.p[1], this.s[0], this.s[1]);
+        if (iE) ctx.rect(this.p[0], this.p[1], this.s[0], this.s[1]);
+        else
+            ctx.ellipse(
+                this.p[0] + this.s[0] / 2,
+                this.p[1] + this.s[1] / 2,
+                this.s[0] / 2,
+                this.s[1] / 2,
+                0,
+                0,
+                2 * Math.PI
+            );
         ctx.strokeStyle = this.clicked ? green : black;
+        if (this.fillFlag) {
+            ctx.fillStyle = "white";
+            ctx.fill();
+        }
         ctx.stroke();
         if (this.clicked) {
             const pfs = ctx.fillStyle;
